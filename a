@@ -1,0 +1,157 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct{
+    char colore;
+    int valore;
+}tubo;
+typedef struct {
+    tubo a, b;
+}tessera;
+
+typedef struct{
+    int indice, verso;
+}pezzo_mappa;
+int calcola_valore(pezzo_mappa **mappa, int r, int c, tessera *elenco_tessere){
+    int *x, i, j, buf1=0, buf2, colore_diverso;
+    char colore;
+    x=malloc(sizeof(int));
+    for(i=0; i<r; i++){
+        buf2=0;
+        colore_diverso=0;
+        if(mappa[i][0].verso==0){colore=elenco_tessere[mappa[i][0].indice].a.colore;}
+        if(mappa[i][0].verso==1){colore=elenco_tessere[mappa[i][0].indice].b.colore;}
+        for(j=0; j<c; j++){
+            if(mappa[i][j].verso==0 && elenco_tessere[mappa[i][j].indice].a.colore==colore){buf2+=elenco_tessere[mappa[i][j].indice].a.valore;}
+            else if(mappa[i][j].verso==1 && elenco_tessere[mappa[i][j].indice].b.colore==colore){buf2+=elenco_tessere[mappa[i][j].indice].b.valore;}
+            else(colore_diverso=1);
+        }
+        if(colore_diverso==0){buf1=buf1+buf2;}
+    }
+    for(j=0; j<c; j++){
+        buf2=0;
+        colore_diverso=0;
+        if(mappa[0][j].verso==0){colore=elenco_tessere[mappa[0][j].indice].b.colore;}
+        if(mappa[0][j].verso==1){colore=elenco_tessere[mappa[0][j].indice].a.colore;}
+        for(i=0; i<r; i++){
+            if(mappa[i][j].verso==0 && elenco_tessere[mappa[i][j].indice].b.colore==colore){buf2+=elenco_tessere[mappa[i][j].indice].b.valore;}
+            else if(mappa[i][j].verso==1 && elenco_tessere[mappa[i][j].indice].a.colore==colore){buf2+=elenco_tessere[mappa[i][j].indice].a.valore;}
+            else(colore_diverso=1);
+        }
+        if(colore_diverso==0){buf1=buf1+buf2;}
+    }
+    *x=buf1;
+    return *x;
+}
+pezzo_mappa **bestsol(pezzo_mappa **mappa, pezzo_mappa **best_sol, tessera *elenco_tessere, int *tes_disp, int r, int c,
+                      int *val_best_sol, int n_tess, int tes_oc){
+    int i, j, k, curr_sol;
+    if(tes_oc>=r*c){
+        curr_sol=calcola_valore(mappa, r, c, elenco_tessere);
+        if (curr_sol>*val_best_sol){
+            *val_best_sol=curr_sol;
+            for(i=0; i<r; i++){
+                for(j=0; j<c; j++){
+                    best_sol[i][j].indice=mappa[i][j].indice;
+                    best_sol[i][j].verso=mappa[i][j].verso;
+                }
+            }
+        }
+        return best_sol;
+    }
+    for(k=0; k<n_tess; k++){
+        if(tes_disp[k]==1){
+            tes_disp[k]=0;
+            for(i=0; i<r; i++){
+                for(j=0; j<c; j++){
+                    if(mappa[i][j].indice==-1){
+                        mappa[i][j].indice=k;
+                        mappa[i][j].verso=0;
+                        best_sol=bestsol(mappa, best_sol, elenco_tessere, tes_disp, r, c, val_best_sol, n_tess, tes_oc+1);
+                        mappa[i][j].verso=1;
+                        best_sol=bestsol(mappa, best_sol, elenco_tessere, tes_disp, r, c, val_best_sol, n_tess, tes_oc+1);
+                        mappa[i][j].indice=-1;
+                        mappa[i][j].verso=-1;
+                    }
+                }
+            }
+            tes_disp[k]=1;
+        }
+    }
+    return best_sol;
+}
+int main() {
+    FILE *f1, *f2;
+    int r, c, n_tes, i, j, *tes_disp, *buf1, tes_oc=0;
+    tessera *elenco_tessere;
+    char buf;
+    pezzo_mappa **mappa, **best_sol;
+    buf1=malloc(sizeof(int));
+    *buf1=0;
+    f1=fopen("tiles.txt", "r");
+    if(f1==NULL){
+        fprintf(stderr, "Il file non e' stato aperto correttamente.\n");
+        exit(0);
+    }
+    fscanf(f1, "%d", &n_tes);
+    elenco_tessere=(tessera *)malloc(n_tes*sizeof(tessera));
+    tes_disp=(int *)malloc(n_tes*sizeof(int));
+    fscanf(f1, "%c", &buf);
+    printf("Elenco di tutte le tessere:\n");
+    for(i=0; i<n_tes; i++){
+        fscanf(f1, "%c", &elenco_tessere[i].a.colore);
+        fscanf(f1, "%c", &buf);
+        fscanf(f1, "%d", &elenco_tessere[i].a.valore);
+        fscanf(f1, "%c", &buf);
+        fscanf(f1, "%c", &elenco_tessere[i].b.colore);
+        fscanf(f1, "%c", &buf);
+        fscanf(f1, "%d", &elenco_tessere[i].b.valore);
+        fscanf(f1, "%c", &buf);
+        printf("%c %d %c %d\n", elenco_tessere[i].a.colore, elenco_tessere[i].a.valore, elenco_tessere[i].b.colore,
+               elenco_tessere[i].b.valore);
+    }
+    fclose(f1);
+    f2=fopen("board.txt", "r");
+    if(f2 == NULL){
+        fprintf(stderr, "Il file non e' stato aperto correttamente.\n");
+        exit(1);
+    }
+    fscanf(f2, "%d %d", &r, &c);
+    mappa=(pezzo_mappa **)malloc(r*sizeof(pezzo_mappa *));
+    best_sol=(pezzo_mappa **)malloc(r*sizeof(pezzo_mappa*));
+    for(i=0; i<r; i++){
+        mappa[i]=(pezzo_mappa *)malloc(c*sizeof(pezzo_mappa));
+        best_sol[i]=(pezzo_mappa *)malloc(c*sizeof(pezzo_mappa));
+    }
+    printf("Mappa iniziale:\n");
+    for(i=0; i<r; i++){
+        for(j=0; j<c; j++){
+            fscanf(f2, "%d %c %d", &mappa[i][j].indice, &buf, &mappa[i][j].verso);
+            printf("%d/%d ", mappa[i][j].indice, mappa[i][j].verso);
+        }
+        printf("\n");
+    }
+    fclose(f2);
+    for(i=0; i<n_tes; i++){
+        tes_disp[i]=1;
+    }
+    for(i=0; i<r; i++){
+        for(j=0; j<c; j++){
+            if(mappa[i][j].indice!=-1){
+                tes_disp[mappa[i][j].indice]=0;
+                tes_oc++;
+            }
+        }
+    }
+    printf("\n");
+    best_sol=bestsol(mappa, best_sol, elenco_tessere, tes_disp, r, c, buf1, n_tes, tes_oc);
+    printf("\nLa migliore soluzione e':\n");
+    for(i=0; i<r; i++){
+        for(j=0; j<c; j++){
+            printf("%d/%d ", best_sol[i][j].indice, best_sol[i][j].verso);
+        }
+        printf("\n");
+    }
+    printf("Con un valore di %d.", calcola_valore(best_sol, r, c, elenco_tessere));
+    return 0;
+}
